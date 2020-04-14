@@ -90,9 +90,12 @@ def define_muaps_templates(raw_signal, timestamps,
     
     # m: muap; k: template
     
-    def sqr_diff(m, k):
-        # TODO
-        pass
+    def sqr_diff(m, k, win_size):
+        difference = 0
+        for i in range(win_size) :
+            difference += (m[i]-k[i])**2
+        return difference
+    
     def update_template(m, k):
         # TODO
         pass
@@ -109,7 +112,7 @@ def define_muaps_templates(raw_signal, timestamps,
         merged = False
         for j in range(templates):  
             k = templates[j]
-            diff = sqr_diff(m, k)
+            diff = sqr_diff(m, k, moving_avg_win_size)
             if (diff < diffTh):
                 #  m is part of k_i
                 templates[j] = update_template(m, k)
