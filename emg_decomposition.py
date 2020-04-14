@@ -11,18 +11,20 @@ def decompose(raw_signal, moving_avg_win_size=20, diffTh=12.65):
                                       verbose=True)
 
     # TODO Determine which MU produced the MUAP
-    # templates = compare_muaps_templates(raw_signal, timestamps)
-    
-    
     # TODO Use detected MUAPs and their time to update template and 
     # firing statistics, the MUAP is used as the initial estimate of the MU
     # template
+    
+    # templates = define_muaps_templates(raw_signal, timestamps,
+    #                                     diffTh,
+    #                                     moving_avg_win_size,
+    #                                     verbose=True)
     
     # return timestamps, templates
 
 def get_muaps_timestamps(sig, 
                          moving_avg_win_size=20,
-                         verbose=True):
+                         verbose=False):
     def find_noise(sig):
         # Noise is any part of the signal that does contain MUAPs
         return sig[:120]
@@ -81,10 +83,49 @@ def get_muaps_timestamps(sig,
         
     return timestamps
 
-def compare_muaps_templates():
-    # TODO STEP 2
-    pass
-
+def define_muaps_templates(raw_signal, timestamps,
+                            diffTh, moving_avg_win_size,
+                            verbose=False):
+    # TODO STEP 2 complete
+    
+    # m: muap; k: template
+    
+    def sqr_diff(m, k):
+        # TODO
+        pass
+    def update_template(m, k):
+        # TODO
+        pass
+    
+    templates = {}
+    ap_margin = (moving_avg_win_size/2)
+    
+    k_i = timestamps[0]
+    k = raw_signal[k_i - ap_margin:k_i + ap_margin]
+    templates.append(k)
+    for i in range(1, timestamps.shape[0]):
+        m_i = timestamps[i]
+        m = raw_signal[m_i - ap_margin:m_i + ap_margin]
+        merged = False
+        for j in range(templates):  
+            k = templates[j]
+            diff = sqr_diff(m, k)
+            if (diff < diffTh):
+                #  m is part of k_i
+                templates[j] = update_template(m, k)
+                merged = True
+                break
+        if not merged:
+            templates.append(m)
+    
+    if verbose:
+        for i in range(templates):
+            template = templates[i]
+            plot(template, title="MUAP " + str(i))
+        
+    return templates
+    
+    
 
 def plot(sig, title = "Plot of CT signal", sampling_rate=1,
          xlabel="t", ylabel="x(t)", markers=None, save=False,
