@@ -91,14 +91,14 @@ def define_muaps_templates(raw_signal, timestamps,
     # m: muap; k: template
     
     def sqr_diff(m, k, win_size):
-        difference = 0
-        for i in range(win_size) :
-            difference += (m[i]-k[i])**2
-        return difference
+        difference = np.subtract(m[0 : win_size], k[0 : win_size])
+        diff_square = np.square(difference)
+        sum_square_differences = np.sum(diff_square)
+        return sum_square_differences
     
     def update_template(m, k):
-        # TODO
-        pass
+        new_k = np.add(m, k) * 0.5
+        return new_k
     
     templates = {}
     ap_margin = (moving_avg_win_size/2)
