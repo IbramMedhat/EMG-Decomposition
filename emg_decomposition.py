@@ -38,28 +38,24 @@ def get_muaps_timestamps(sig,
         return smoothed_signal
 
     def define_above_thresholds(sig, threshold,
-                                add_margin=20,
                                 discard_margin=20):
         values_indices = set()
-        num_of_above_thresh = 0
-        current_step = 0
         step_of_first_observation = None
-        # to_add  = False
-        num_of_under_thresh = 0
-        for v in sig:
-            current_step += 1
+    
+        v_i = 0
+        while(v_i < sig.shape[0]):
+            v = sig[v_i]
             if v >= threshold:
-                if num_of_above_thresh == 0:
-                    step_of_first_observation = current_step
-                num_of_above_thresh += 1
-            elif num_of_above_thresh > 0:
-                num_of_under_thresh += 1
-                if num_of_under_thresh >= discard_margin:
-                    num_of_under_thresh = 0
-                    num_of_above_thresh = 0
-                    # to_add = False
-                if num_of_above_thresh >= add_margin:
-                    values_indices.add(step_of_first_observation)
+                if step_of_first_observation is None:
+                    step_of_first_observation = v_i
+                    v_i += discard_margin
+                    continue
+            else:
+                step_of_first_observation = None
+            if step_of_first_observation is not None:
+                values_indices.add(step_of_first_observation)
+            v_i += 1
+
         values_indices = list(values_indices)
         values_indices.sort()
         return np.array(values_indices)
@@ -78,8 +74,7 @@ def get_muaps_timestamps(sig,
     threshold = 3*np.std(noise)
     timestamps = define_above_thresholds(moving_avg_signal,
                                          threshold,
-                                         add_margin=10,
-                                         discard_margin=5)
+                                         discard_margin=moving_avg_win_size)
     if verbose:
         plot(raw_signal, title="Marked MUAPs", markers=timestamps,
              begin=2200, end=3200)
