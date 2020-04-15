@@ -15,12 +15,12 @@ def decompose(raw_signal, moving_avg_win_size=20, diffTh=12.65):
     # firing statistics, the MUAP is used as the initial estimate of the MU
     # template
     
-    # templates = define_muaps_templates(raw_signal, timestamps,
-    #                                     diffTh,
-    #                                     moving_avg_win_size,
-    #                                     verbose=True)
+    templates = define_muaps_templates(raw_signal, timestamps,
+                                        diffTh,
+                                        moving_avg_win_size,
+                                        verbose=True)
     
-    # return timestamps, templates
+    return timestamps, templates
 
 def get_muaps_timestamps(sig, 
                          moving_avg_win_size=20,
@@ -91,6 +91,8 @@ def define_muaps_templates(raw_signal, timestamps,
     # m: muap; k: template
     
     def sqr_diff(m, k, win_size):
+        m = np.array(m)
+        k = np.array(k)
         difference = np.subtract(m[0 : win_size], k[0 : win_size])
         diff_square = np.square(difference)
         sum_square_differences = np.sum(diff_square)
@@ -100,18 +102,17 @@ def define_muaps_templates(raw_signal, timestamps,
         new_k = np.add(m, k) * 0.5
         return new_k
     
-    templates = {}
-    ap_margin = (moving_avg_win_size/2)
+    templates = []
+    ap_margin = int(moving_avg_win_size/2)
     
     k_i = timestamps[0]
-    k = raw_signal[k_i - ap_margin:k_i + ap_margin]
+    k = np.array(raw_signal[k_i - ap_margin:k_i + ap_margin])
     templates.append(k)
     for i in range(1, timestamps.shape[0]):
         m_i = timestamps[i]
-        m = raw_signal[m_i - ap_margin:m_i + ap_margin]
+        m = np.array(raw_signal[m_i - ap_margin:m_i + ap_margin])
         merged = False
-        for j in range(templates):  
-            k = templates[j]
+        for j, k in enumerate(templates):  
             diff = sqr_diff(m, k, moving_avg_win_size)
             if (diff < diffTh):
                 #  m is part of k_i
@@ -121,9 +122,10 @@ def define_muaps_templates(raw_signal, timestamps,
         if not merged:
             templates.append(m)
     
+    templates = np.array(templates)
+    
     if verbose:
-        for i in range(templates):
-            template = templates[i]
+        for i, template in enumerate(templates[:3]):
             plot(template, title="MUAP " + str(i))
         
     return templates
@@ -133,8 +135,9 @@ def define_muaps_templates(raw_signal, timestamps,
 def plot(sig, title = "Plot of CT signal", sampling_rate=1,
          xlabel="t", ylabel="x(t)", markers=None, save=False,
          begin=0, end=1000):
-    if end == 0:
+    if end == 0 | end > sig.shape[0]:
         end = sig.shape[0]
+        
     draw_sig=sig[begin:end]
     begin_time = begin/sampling_rate
     end_time = (end-1)/sampling_rate
@@ -154,6 +157,10 @@ def plot(sig, title = "Plot of CT signal", sampling_rate=1,
     plt.show()
 
 if __name__ == '__main__':
+    moving_avg_win_size=20
+    diffTh=12.65
     raw_signal = pd.read_csv("Data.txt", header=None)[0]
-    decompose(raw_signal)
+    timestamps, templates = decompose(raw_signal,
+                                      moving_avg_win_size=moving_avg_win_size,
+                                      diffTh=diffTh)
  
