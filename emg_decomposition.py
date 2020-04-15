@@ -3,22 +3,23 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-def decompose(raw_signal, moving_avg_win_size=20, diffTh=12.65):
+def decompose(raw_signal, moving_avg_win_size=20, diffTh=1265000, verbose=False):
+
     raw_signal = np.array(raw_signal)
     
     # Locate MUAPs
     timestamps = get_muaps_timestamps(raw_signal, moving_avg_win_size,
-                                      verbose=True)
+                                      verbose=verbose)
 
-    # TODO Determine which MU produced the MUAP
-    # TODO Use detected MUAPs and their time to update template and 
+    # Determine which MU produced the MUAP
+    # Use detected MUAPs and their time to update template and 
     # firing statistics, the MUAP is used as the initial estimate of the MU
     # template
     
     templates = define_muaps_templates(raw_signal, timestamps,
                                         diffTh,
                                         moving_avg_win_size,
-                                        verbose=True)
+                                        verbose=verbose)
     
     return timestamps, templates
 
@@ -90,17 +91,11 @@ def define_muaps_templates(raw_signal, timestamps,
     
     # m: muap; k: template
     
-    def sqr_diff(m, k, win_size):
-        m = np.array(m)
-        k = np.array(k)
-        difference = np.subtract(m[0 : win_size], k[0 : win_size])
-        diff_square = np.square(difference)
-        sum_square_differences = np.sum(diff_square)
-        return sum_square_differences
-    
+    def sqr_diff(m, k):
+        return np.sum((m - k)**2)
+
     def update_template(m, k):
-        new_k = np.add(m, k) * 0.5
-        return new_k
+        return np.add(m, k) * 0.5
     
     templates = []
     ap_margin = int(moving_avg_win_size/2)
@@ -113,7 +108,8 @@ def define_muaps_templates(raw_signal, timestamps,
         m = np.array(raw_signal[m_i - ap_margin:m_i + ap_margin])
         merged = False
         for j, k in enumerate(templates):  
-            diff = sqr_diff(m, k, moving_avg_win_size)
+            diff = sqr_diff(m, k)
+            print(diff)
             if (diff < diffTh):
                 #  m is part of k_i
                 templates[j] = update_template(m, k)
@@ -158,9 +154,11 @@ def plot(sig, title = "Plot of CT signal", sampling_rate=1,
 
 if __name__ == '__main__':
     moving_avg_win_size=20
-    diffTh=12.65
+    diffTh=1265000
     raw_signal = pd.read_csv("Data.txt", header=None)[0]
     timestamps, templates = decompose(raw_signal,
                                       moving_avg_win_size=moving_avg_win_size,
-                                      diffTh=diffTh)
+                                      diffTh=diffTh, verbose=True)
+    print("%s timstamps are detected, reduced to %s templates"\
+          % (timestamps.shape[0], templates.shape[0]))
  
