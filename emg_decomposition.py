@@ -3,29 +3,32 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-def decompose(raw_signal, moving_avg_win_size=20, diffTh=1265000, verbose=False):
+def decompose(raw_signal, moving_avg_win_size=20, diffTh=1265000,
+              verbose=False, begin=2200, end=3200):
 
     raw_signal = np.array(raw_signal)
     
     # Locate MUAPs
     timestamps = get_muaps_timestamps(raw_signal, moving_avg_win_size,
-                                      verbose=verbose)
+                                      verbose=verbose,
+                                      begin=begin, end=end)
 
     # Determine which MU produced the MUAP
     # Use detected MUAPs and their time to update template and 
     # firing statistics, the MUAP is used as the initial estimate of the MU
     # template
     
-    templates = define_muaps_templates(raw_signal, timestamps,
-                                        diffTh,
-                                        moving_avg_win_size,
-                                        verbose=verbose)
+    templates, temp_sigs_dict = define_muaps_templates(raw_signal,
+                                                       timestamps,
+                                                       diffTh,
+                                                       moving_avg_win_size,
+                                                       verbose=verbose)
     
-    return timestamps, templates
+    return timestamps, templates, temp_sigs_dict
 
 def get_muaps_timestamps(sig, 
                          moving_avg_win_size=20,
-                         verbose=False):
+                         verbose=False, begin=2200, end=3200):
     def find_noise(sig):
         # Noise is any part of the signal that does contain MUAPs
         return sig[:110]
@@ -100,7 +103,7 @@ def get_muaps_timestamps(sig,
                                          win_size=moving_avg_win_size)
     if verbose:
         plot(moving_avg_signal, title="moving_avg_signal",
-             begin=0, end=-1)
+             begin=begin, end=end)
     
     noise = find_noise(rectified_signal)
     threshold = 3*np.std(noise)
@@ -111,8 +114,11 @@ def get_muaps_timestamps(sig,
                                          threshold,
                                          discard_margin=moving_avg_win_size)
     if verbose:
+        overthresh = np.where(moving_avg_signal > threshold)[0]
+        plot(raw_signal, title="Over threshs", markers=overthresh,
+             begin=begin, end=end)
         plot(raw_signal, title="Marked MUAPs", markers=timestamps,
-             begin=0, end=-1)
+             begin=begin, end=end)
         
     return timestamps
 
@@ -126,11 +132,12 @@ def define_muaps_templates(raw_signal, timestamps,
 
     def update_template(m, k):
         return np.add(m, k) * 0.5
-    
+    templates_sigs_dict = {}
     templates = []
     ap_margin = int(moving_avg_win_size/2)
     
     k_i = timestamps[0]
+    templates_sigs_dict[0] = [0]
     k = np.array(raw_signal[k_i - ap_margin:k_i + ap_margin])
     templates.append(k)
     for i in range(1, timestamps.shape[0]):
@@ -143,10 +150,13 @@ def define_muaps_templates(raw_signal, timestamps,
                 #  m is part of k_i
                 # print("Merge spike %s with template %s" % (i,j))
                 templates[j] = update_template(m, k)
+                templates_sigs_dict[j].append(m_i)
+                
                 merged = True
                 break
         if not merged:
             templates.append(m)
+            templates_sigs_dict[len(templates) - 1] = [m_i]
             print("Spike %s makes new template %s" % (i, len(templates) -1))
 
     
@@ -156,13 +166,28 @@ def define_muaps_templates(raw_signal, timestamps,
         for i, template in enumerate(templates):
             plot(template, title="MUAP " + str(i))
         
-    return templates
+    return templates, templates_sigs_dict
     
     
 
 def plot(sig, title = "Plot of CT signal", sampling_rate=1,
-         xlabel="t", ylabel="x(t)", markers=None, save=False,
-         begin=0, end=1000):
+         xlabel="t", ylabel="x(t)", markers=None, show=True, save=False,
+         begin=0, end=1000, markers_types=None):
+    def dictionarize(markers, types=None,
+                     colors=['b', 'g', 'r', 'c', 'm', 'y', 'k']):
+        _dict = {}
+        current_color_i = 0
+        if types is None:
+            _dict[colors[current_color_i]] = markers 
+        else:
+            for sigs in markers_types.values():
+                sigs = np.array(sigs)   
+                t_markers =  np.intersect1d(markers, sigs)
+                if t_markers.shape[0] > 0:
+                    _dict[colors[current_color_i]] = t_markers
+                    current_color_i += 1
+        return _dict
+            
     if end <= 0 or end > sig.shape[0]:
         end = sig.shape[0]
         
@@ -172,9 +197,10 @@ def plot(sig, title = "Plot of CT signal", sampling_rate=1,
     t = np.linspace(begin_time, end_time , draw_sig.shape[0])
     if markers is not None:
         markers = markers[(markers >= begin) & (markers <= end)]
-        markers_amp = np.ones(markers.shape)*np.max(draw_sig)
-        plt.plot(markers, markers_amp, marker="*",
-                 linestyle=' ', color='r', label='R-Waves')
+        for c, m in dictionarize(markers, types=markers_types).items():
+            markers_amp = np.ones(m.shape)*np.max(draw_sig)
+            plt.plot(m, markers_amp, marker="*",
+                     linestyle=' ', color=c, label=title)
     plt.plot(t, draw_sig)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -182,24 +208,45 @@ def plot(sig, title = "Plot of CT signal", sampling_rate=1,
     plt.xlim([begin_time, end_time])  
     if save:
         plt.savefig(title + ".jpg", progressive=True)
-    plt.show()
+    if show:
+        plt.show()
+
+# def mult_plot(sigs, titles = ["Plot of CT signal"], sampling_rate=1,
+#           xlabel="t", ylabel="x(t)", markers=None, save=False, filename="Default",
+#           begin=0, end=1000, markers_types=None):
+#     for i, sig in enumerate(sigs):
+#         plot(sig, title="MUAP " + str(i), save=False, show=False)
+    
+#     if save:
+#         plt.savefig(filename + ".jpg", progressive=True)
+#     plt.show()
+        
+        
 
 if __name__ == '__main__':
     moving_avg_win_size=20
-    diffTh=1275000
+    diffTh=1265000
     raw_signal = pd.read_csv("Data.txt", header=None)[0]
     raw_signal = raw_signal.reset_index()[0]
-    timestamps, templates = decompose(raw_signal,
-                                      moving_avg_win_size=moving_avg_win_size,
-                                      diffTh=diffTh, verbose=True)
+    timestamps, templates, temp_sigs_dict =\
+            decompose(raw_signal,
+                      moving_avg_win_size=moving_avg_win_size,
+                      diffTh=diffTh, verbose=False)
+            
     print("%s timstamps are detected, reduced to %s templates"\
           % (timestamps.shape[0], templates.shape[0]))
  
-    # TODO A figure showing from sample 30000 to sample 35000 of the EMG signal
+    # A figure showing from sample 30000 to sample 35000 of the EMG signal
     # with an “*” marking the detected MUAPs colored with different colors
-    # depending on the MU each MUAP belongs to (Similar to slide 19). 
-    # Name the figure “DetectedMUAP.jpg”
+    # depending on the MU each MUAP belongs to.
+    plot(raw_signal, title="DetectedMUAP", markers=timestamps,
+         markers_types=temp_sigs_dict, begin=29000, end=30800, save=True)
 
     
     # TODO A figure showing the waveform of each template of the detected MUs
     # (Similar to slide 20). Name the figure “Templates.jpg”
+    # mult_plot(templates, title="Templates")
+    
+    # fig, axs = plt.subplots(2, 2)
+    # for ax in axs.flat:
+    #     ax.set(xlabel='x-label', ylabel='y-label')
