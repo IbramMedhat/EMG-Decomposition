@@ -187,7 +187,7 @@ def plot(sig, title = "Plot of CT signal", sampling_rate=1,
                     _dict[colors[current_color_i]] = t_markers
                     current_color_i += 1
         return _dict
-            
+    
     if end <= 0 or end > sig.shape[0]:
         end = sig.shape[0]
         
@@ -199,8 +199,9 @@ def plot(sig, title = "Plot of CT signal", sampling_rate=1,
         markers = markers[(markers >= begin) & (markers <= end)]
         for c, m in dictionarize(markers, types=markers_types).items():
             markers_amp = np.ones(m.shape)*np.max(draw_sig)
-            plt.plot(m, markers_amp, marker="*",
-                     linestyle=' ', color=c, label=title)
+            if show:
+                plt.plot(m, markers_amp, marker="*",
+                         linestyle=' ', color=c, label=title)
     plt.plot(t, draw_sig)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -208,19 +209,33 @@ def plot(sig, title = "Plot of CT signal", sampling_rate=1,
     plt.xlim([begin_time, end_time])  
     if save:
         plt.savefig(title + ".jpg", progressive=True)
-    if show:
-        plt.show()
+    plt.show()
 
-# def mult_plot(sigs, titles = ["Plot of CT signal"], sampling_rate=1,
-#           xlabel="t", ylabel="x(t)", markers=None, save=False, filename="Default",
-#           begin=0, end=1000, markers_types=None):
-#     for i, sig in enumerate(sigs):
-#         plot(sig, title="MUAP " + str(i), save=False, show=False)
-    
-#     if save:
-#         plt.savefig(filename + ".jpg", progressive=True)
-#     plt.show()
+def mult_plot(sigs, title = "Plot of CT signal", subtitle="",
+              sampling_rate=1, xlabel="t", ylabel="x(t)", save=False, 
+              begin=0, end=1000):
+    n_plots_v = int(sigs.shape[0]/3)
+    fig, axs = plt.subplots(n_plots_v, 3,
+                            figsize=((n_plots_v + 1)*5, 5 * 3))
+    for ax, (s_i, sig) in zip(axs.flat, enumerate(sigs)):
+        if end <= 0 or end > sig.shape[0]:
+            end = sig.shape[0]
+            
+        draw_sig=sig[begin:end]
+        begin_time = begin/sampling_rate
+        end_time = (end-1)/sampling_rate
+        t = np.linspace(begin_time, end_time , draw_sig.shape[0])
+        ax.plot(t, draw_sig)
+        ax.set_title(subtitle + " "  + str(s_i))
+        ax.set_xlim([begin_time, end_time])
         
+    # fig.tight_layout()
+    if save:
+        plt.savefig(title + " " +  ".jpg", progressive=True)
+
+    plt.show()
+
+  
         
 
 if __name__ == '__main__':
@@ -231,8 +246,9 @@ if __name__ == '__main__':
     timestamps, templates, temp_sigs_dict =\
             decompose(raw_signal,
                       moving_avg_win_size=moving_avg_win_size,
-                      diffTh=diffTh, verbose=False)
-            
+                      diffTh=diffTh, verbose=False,
+                      begin=2200, end=3200)
+                
     print("%s timstamps are detected, reduced to %s templates"\
           % (timestamps.shape[0], templates.shape[0]))
  
@@ -243,10 +259,7 @@ if __name__ == '__main__':
          markers_types=temp_sigs_dict, begin=29000, end=30800, save=True)
 
     
-    # TODO A figure showing the waveform of each template of the detected MUs
-    # (Similar to slide 20). Name the figure “Templates.jpg”
-    # mult_plot(templates, title="Templates")
+    # A figure showing the waveform of each template of the detected MUs
+    mult_plot(templates, title="Templates", subtitle="MUAP", save=True)
     
-    # fig, axs = plt.subplots(2, 2)
-    # for ax in axs.flat:
-    #     ax.set(xlabel='x-label', ylabel='y-label')
+        
