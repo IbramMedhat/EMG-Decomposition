@@ -35,12 +35,9 @@ def get_muaps_timestamps(sig,
     
     def apply_moving_avg(sig, win_size=20):
         smoothed_signal = np.zeros(sig.shape)
-        for i in range(win_size - 1, len(sig)):
-            avg_value = 0
-            for v_i in range(win_size):
-                avg_value += sig[i-v_i]
-            avg_value /= win_size
-            smoothed_signal[i] = avg_value
+        for i in range(len(sig)-win_size):
+            avg_value = np.sum(sig[i:i+win_size])/win_size
+            smoothed_signal[i+win_size] = avg_value
         return smoothed_signal
 
     def define_above_thresholds(sig, threshold,
@@ -48,6 +45,7 @@ def get_muaps_timestamps(sig,
         values_indices = set()
         step_of_first_observation = None
         adding_margin = discard_margin/2
+        consecutive_aboves = []
         v_i = 0
         while v_i < sig.shape[0] :
             v = sig[v_i]
@@ -71,19 +69,15 @@ def get_muaps_timestamps(sig,
                         np.argmax(consecutive_aboves) +\
                         step_of_first_observation -\
                         adding_margin
-                        
-                    if consecutive_aboves.shape[0] < discard_margin:
+                if consecutive_aboves.shape[0] < discard_margin:
+                        # print(discard_margin)
+                        # print(v_i)
+                        # print(consecutive_aboves)
                         v_i = v_i_tmp      
                         step_of_first_observation = None
-
-                        
-                    # for v_2i in range(step_of_first_observation, v_i):
-                    #     # print("@v_2i =  %s, v = %s" % (v_2i, sig[v_2i]) )
-                    #     if (v_2i < sig.shape[0]) and (sig[v_2i] < threshold):
-                    #         step_of_first_observation = None
-                    #         v_i = v_2i + 1
-                    #         break
-                    # continue
+                # else:
+                #     print("USE THAT")
+                #     print(consecutive_aboves)
             else:
                 step_of_first_observation = None
             if step_of_first_observation is not None:
@@ -246,7 +240,7 @@ if __name__ == '__main__':
     timestamps, templates, temp_sigs_dict =\
             decompose(raw_signal,
                       moving_avg_win_size=moving_avg_win_size,
-                      diffTh=diffTh, verbose=False,
+                      diffTh=diffTh, verbose=True,
                       begin=2200, end=3200)
                 
     print("%s timstamps are detected, reduced to %s templates"\
@@ -256,7 +250,7 @@ if __name__ == '__main__':
     # with an “*” marking the detected MUAPs colored with different colors
     # depending on the MU each MUAP belongs to.
     plot(raw_signal, title="DetectedMUAP", markers=timestamps,
-         markers_types=temp_sigs_dict, begin=29000, end=30800, save=True)
+         markers_types=temp_sigs_dict, begin=30000, end=35000, save=True)
 
     
     # A figure showing the waveform of each template of the detected MUs
